@@ -16,9 +16,9 @@ class FilteredImageModel: ObservableObject {
 
   enum FilterType: CaseIterable, CustomStringConvertible {
     case none, asciiMono, asciiColor, emoji, emojiFlags
-    private static let asciiSet = try! FileService.read(type: TileSet.self, from: "asciiSet.json")
-    private static let emojiSet = try! FileService.read(type: TileSet.self, from: "emojiSet.json")
-    private static let emojiFlagsSet = try! FileService.read(type: TileSet.self, from: "emojiFlagsSet.json")
+    private static let asciiSet = try! FileService.read(type: TileSet.self, name: "asciiSet", extension: "json")
+    private static let emojiSet = try! FileService.read(type: TileSet.self, name: "emojiSet", extension: "json")
+    private static let emojiFlagsSet = try! FileService.read(type: TileSet.self, name: "emojiFlagsSet", extension: "json")
     var tileSet: TileSet {
       switch self {
       case .none, .asciiMono, .asciiColor: return Self.asciiSet
@@ -76,20 +76,12 @@ class FilteredImageModel: ObservableObject {
           $0.0 == $1.0 && $0.1 == $1.1 && $0.2 == $1.2
         })
         .map { combined -> UIImage in
-          progressSubject.value = 0
           let (inputImage, filterType, pointSize, bounds) = combined
-          let tileset: TileSet
-          switch filterType {
-          case .none:
+          guard filterType != .none else {
             progressSubject.value = nil
             return inputImage
-          case .asciiColor, .asciiMono:
-            tileset = .makeAscii(points: pointSize)
-          case .emoji:
-            tileset = .makeEmoji(points: pointSize)
-          case .emojiFlags:
-            tileset = .makeEmojiFlags(points: pointSize)
           }
+          let tileset = filterType.tileSet
           let tileSize = tileset.calculateSize(points: pointSize)
           let columns = Int((bounds.size.width / tileSize.width).rounded(.up))
           let rows = Int((bounds.size.height / tileSize.height).rounded(.up))
@@ -129,7 +121,7 @@ class FilteredImageModel: ObservableObject {
                   let tile = tileset.tile(for: brightness)
                   letter = NSMutableAttributedString(
                     string: tile.symbol,
-                    attributes: [ .font: UIFont.systemFont(ofSize: pointSize), .foregroundColor: color]
+                    attributes: [ .font: UIFont.monospacedSystemFont(ofSize: pointSize, weight: .black), .foregroundColor: color]
                   )
                 case .asciiMono:
                   let brightness = pixelBuffer.brightness(x: column, y: row)
